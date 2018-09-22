@@ -1,0 +1,22 @@
+https://www.digitalocean.com/community/tutorials/how-to-manage-and-use-ldap-servers-with-openldap-utilities
+
+Installing the Tools
+The prerequisites above assume that you already have access to an LDAP system, but you may not already have the OpenLDAP tools discussed in this guide installed.
+
+On an Ubuntu or Debian system, you can install these tools through the apt repositories. Update your local package index and install by typing:
+
+sudo apt-get update
+sudo apt-get install ldap-utils
+
+On CentOS or Fedora, you can get the appropriate files by using yum. Install them by typing:
+
+sudo yum install openldap-clients
+
+Once you have the correct packages installed, continue below.
+
+# connect to ...
+ldapsearch -h 192.168.1.1 -p 389  -D "cn=Manager,dc=ntt,dc=com,dc=hk" -w kl,m2we
+# 查根節點
+ldapsearch -h 192.168.1.1 -p 389  -D "cn=Manager,dc=ntt,dc=com,dc=hk" -w kl,m2we3 -s base -b "" namingContexts
+# 查節點
+ldapsearch -h 192.168.1.1 -p 389  -D "cn=Manager,dc=ntt,dc=com,dc=hk" -w kl,m2we3 -s base -b "ou=portal,dc=ntt,dc=com,dc=hk"
