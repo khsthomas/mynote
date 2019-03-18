@@ -1,0 +1,62 @@
+./vendor/bin/codecept run acceptance AssetsCept -d
+
+java -jar selenium-server-standalone-2.53.1.jar
+There was 1 error:
+使用 selenium server + firefox 錯誤訊息, 應該是firefox 連不到 display console 的錯誤
+---------
+1) AssetsCept: Ensure that assets page loads without errors
+ Test  tests/acceptance/AssetsCept.php
+Unable to connect to host localhost on port 7055 after 45000 ms. Firefox console output:
+Error: no DISPLAY environment variable specified
+
+ 指定 DISPLAY env，
+ 
+root@d9cb0d45c8e6:/var/www/html# export DISPLAY=:0
+root@d9cb0d45c8e6:/var/www/html# java -jar selenium-server-standalone-2.53.1.jar
+There was 1 error:
+
+---------
+1) AssetsCept: Ensure that assets page loads without errors
+ Test  tests/acceptance/AssetsCept.php
+Unable to connect to host localhost on port 7055 after 45000 ms. Firefox console output:
+Unable to init server: Could not connect: Connection refused
+Error: cannot open display: :0
+
+####################################
+java -jar selenium-server-standalone-2.53.1.jar  -Dwebdriver.firefox.bin="/var/www/html/geckodriver"
+There was 1 error:
+應該也是 display 的問題 
+---------
+1) AssetsCept: Ensure that assets page loads without errors
+ Test  tests/acceptance/AssetsCept.php
+Unable to connect to host localhost on port 7055 after 45000 ms. Firefox console output:
+error: Found argument '-f' which wasn't expected, or isn't valid in this context
+
+USAGE:
+    geckodriver [FLAGS] [OPTIONS]
+
+For more information try --help
+
+######################################
+./geckodriver
+There was 1 error:
+使用 ./geckodriver 錯誤訊息
+---------
+1) AssetsCept: Ensure that assets page loads without errors
+ Test  tests/acceptance/AssetsCept.php
+                                                    
+  [ErrorException] Illegal string offset 'ELEMENT'  
+
+###################################################
+./chromedriver --port=4444 --url-base=/wd/hub
+There was 1 error:
+
+---------
+1) AssetsCept: Ensure that assets page loads without errors
+ Test  tests/acceptance/AssetsCept.php
+unknown error: cannot find Chrome binary
+  (Driver info: chromedriver=72.0.3626.69 (3c16f8a135abc0d4da2dff33804db79b849a7c38),platform=Linux 4.9.125-linuxkit x86_64)
+
+#####################################################
+＃因為在docker沒有 GUI 的設定，所以必須在本機啟動
+./chromedriver --port=4444 --url-base=/wd/hub --whitelisted-ips=0.0.0.0
