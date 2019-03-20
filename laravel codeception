@@ -1,0 +1,12 @@
+ 
+ ##./vendor/bin/phpunit
+ ./vendor/bin/codecept run unit AssetTest -d
+ ./vendor/bin/codecept run api ApiAssetsCest -d
+ ./vendor/bin/codecept run functional AssetsCest -d
+ ./vendor/bin/codecept run acceptance AssetsCept -d
+ 
+ #seeder
+ ./artisan db:seed --class=AssetSeeder
+ 
+ ./artisan tinker
+ App::make('AssetSeeder')->run();
