@@ -1,0 +1,9 @@
+## install elasticSearch
+#git clone git://github.com/medcl/elasticsearch-rtf.git -b master --depth 1
+
+# groupadd elsearch
+# useradd elsearch -g elsearch -p elasticsearch-rtf
+# chown -R elsearch:elsearch elasticsearch-rtf
+
+## 使用者 elsearch，而且在 docker 不能 -d
+# su elsearch & ./bin/elasticsearch
