@@ -1,0 +1,9 @@
+curl -v -s -w %{time_total} \
+-H "companyid:0010022" \
+-H "role:73" \
+-H "username:admin@demo.ntt" \
+-H "x-request-id:xxxxxx" \
+'http://vdc-ws.vdc.nttca:8080/VirtualDCWs/api/inventories/buildinglist?action=inventory-getBuildingList&targetCompanyId=0010022&siteUid=83&enable_for_user=0&result_description=Impersonating%3A+None.+'
+
+ date; curl -v -s -w %{time_total} -H 'role:73' -H 'companyid:0010022' -H 'username:admin@demo.ntt' 'http://vdc-ws.vdc.nttca:8080/VirtualDCWs/api/inventories/buildinglist?siteUid=83&targetCompanyId=0010022&test'; date
+
