@@ -1,0 +1,3 @@
+slapcat -f /etc/openldap/slapd.conf -l export.ldif
+
+slapadd -f /etc/openldap/slapd.conf -l export.ldif
