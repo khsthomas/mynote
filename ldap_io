@@ -1,3 +1,10 @@
+#slapd -VV
+#@(#) $OpenLDAP: slapd 2.4.44 (Jan 29 2019 17:42:45) $
 slapcat -f /etc/openldap/slapd.conf -l export.ldif
 
 slapadd -f /etc/openldap/slapd.conf -l export.ldif
+
+#slapd -VV
+#@(#) $OpenLDAP: slapd 2.4.44 (Jan 29 2019 17:42:45) $
+# 根結點的 ou 先除去。
+ldapadd -x -W -D "cn=Manager,dc=ntt,dc=com,dc=hk" -f export_o.ldif
