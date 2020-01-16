@@ -1,6 +1,13 @@
-#slapd -VV
-#@(#) $OpenLDAP: slapd 2.4.44 (Jan 29 2019 17:42:45) $
+# slapd -VV
+@(#) $OpenLDAP: slapd 2.4.39 (Sep 29 2015 13:31:12) $
+        mockbuild@worker1.bsys.centos.org:/builddir/build/BUILD/openldap-2.4.39/openldap-2.4.39/servers/slapd
+
+
 slapcat -f /etc/openldap/slapd.conf -l export.ldif
+
+#delete all files in /var/lib/ldap/*. 
+# grep ^directory /etc/openldap/slapd.conf
+directory       /var/lib/ldap
 
 slapadd -f /etc/openldap/slapd.conf -l export.ldif
 
