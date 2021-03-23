@@ -1,0 +1,102 @@
+CentOS7 + use of sha2 in OpenLDAP
+
+Environment
+CentOS7
+
+Check before you begin work
+sha2 module is to be checked used
+
+to explicitly specify the sha2 module, try you can hash the password in sha2
+
+[root@localhost ~]# slappasswd -h '{SHA256}' -o module-load=/usr/lib64/openldap/pw-sha2.so -s foobar
+made ※ following compilation procedure if here unavailable/error such as and we
+ should ... make the absolute error or rather ※
+ in order to confirm that there is no module to ※ other places, maybe may try searching in the Toka find/-name pw-sha2.so
+ 
+Compilation of modules
+Premise
+It gcc has already been introduced
+
+※ In the case of not installed, yum install gcc
+
+Source the DL and decompression go to the working directory
+[root@localhost ~]# cd /usr/local/src/
+[root@localhost src]# wget ftp://ftp.openldap.org/pub/OpenLDAP/openldap-release/openldap-2.4.44.tgz
+[root@localhost src]# tar xzvf openldap-2.4.44.tgz
+[root@localhost openldap-2.4.44]# cd openldap-2.4.44
+ 
+Creating a Makefile
+※ db related dare excluded (because there are many other also need a package troublesome)
+
+※ If you do not want to exclude, it becomes necessary Toka db4
+
+[root@localhost openldap-2.4.44]# ./configure --enable-bdb=no --enable-hdb=no
+ 
+Compilation of dependent libraries and the main body
+[root@localhost openldap-2.4.44]# make depend
+[root@localhost openldap-2.4.44]# make
+ 
+Sha2 compilation of modules
+[root@localhost openldap-2.4.44]# cd /usr/local/src/openldap-2.4.44/contrib/slapd-modules/passwd/sha2
+[root@localhost sha2]# make
+ ../../../../libtool --mode=link gcc -g -O2 -Wall -version-info 0:0:0\
+-rpath/usr/local/libexec/openldap -module -o pw-sha2.la slapd-sha2.lo sha2.lo ../../../../libraries/libldap_r/libldap_r.la ../../../../libraries/liblber/liblber.la
+cc -shared  .libs/slapd-sha2.o .libs/sha2.o  -Wl,--rpath -Wl,/usr/local/src/openldap-2.4.44/libraries/libldap_r/.libs -Wl,--rpath -Wl,/usr/local/src/openldap-2.4.44/libraries/liblber/.libs -Wl,--rpath -Wl,/usr/local/lib -L/usr/local/src/openldap-2.4.44/libraries/liblber/.libs ../../../../libraries/libldap_r/.libs/libldap_r.so ../../../../libraries/liblber/.libs/liblber.so  -Wl,-soname -Wl,pw-sha2.so.0 -o .libs/pw-sha2.so.0.0.0
+(cd .libs && rm -f pw-sha2.so.0 && ln -s pw-sha2.so.0.0.0 pw-sha2.so.0)
+(cd .libs && rm -f pw-sha2.so && ln -s pw-sha2.so.0.0.0 pw-sha2.so)
+ar cru .libs/pw-sha2.a  slapd-sha2.o sha2.o
+ranlib .libs/pw-sha2.a
+creating pw-sha2.la
+(cd .libs && rm -f pw-sha2.la && ln -s ../pw-sha2.la pw-sha2.la)
+ [root@localhost sha2]# ls -l .libs/
+ total 220
+
+-rw-r--r--. 1 root root 76796 Jan 14 15:17 pw-sha2.a
+ lrwxrwxrwx. 1 root root    13 Jan 14 15:17 pw-sha2.la -> ../pw-sha2.la
+ -rw-r--r--. 1 root root   887 Jan 14 15:17 pw-sha2.lai
+ lrwxrwxrwx. 1 root root    16 Jan 14 15:17 pw-sha2.so -> pw-sha2.so.0.0.0
+ lrwxrwxrwx. 1 root root    16 Jan 14 15:17 pw-sha2.so.0 -> pw-sha2.so.0.0.0
+ -rwxr-xr-x. 1 root root 61488 Jan 14 15:17 pw-sha2.so.0.0.0
+-rw-r--r--. 1 root root 43184 Jan 14 15:14 sha2.o
+-rw-r--r--. 1 root root 32288 Jan 14 15:14 slapd-sha2.o
+ 
+Built-in work to OpenLDAP
+Preparation
+Copy the following generated in the previous step under /usr/lib64/openldap/
+pw-sha2.la
+pw-sha2.so
+pw-sha2.so.0
+pw-sha2.so.0.0.0
+
+**Check pw-sha module dependency: 
+[root@localhost ~]# ldd /usr/lib64/openldap/pw-sha2.so
+if it shows "liblber-2-devel.so.0 => not found" then find and copy the liblber-2-devel.so.0 under /usr/lib64/
+$ locate liblber-2
+/root/openldap/libraries/liblber/.libs/liblber-2-devel.so.0
+/root/openldap/libraries/liblber/.libs/liblber-2-devel.so.0.0.0
+/usr/lib/x86_64-linux-gnu/liblber-2.4.so.2
+/usr/lib/x86_64-linux-gnu/libllocate liblber-2
+/root/openldap/libraries/liblber/.libs/liblber-2-devel.so.0
+/root/openldap/libraries/liblber/.libs/liblber-2-devel.so.0.0.0
+/usr/lib/x86_64-linux-gnu/liblber-2.4.so.2
+/usr/lib/x86_64-linux-gnu/liblber-2.4.so.2.10.10
+
+
+Change of configuration
+slapd.conf
+※ added to the 13 per line
+moduleload      pw-sha2.la
+ 
+Configuration regenerate
+[root@localhost ~]# rm -rf /etc/openldap/slapd.d/*
+[root@localhost ~]# slaptest -f /etc/openldap/slapd.conf -F /etc/openldap/slapd.d
+[root@localhost ~]# chown -R ldap:ldap /etc/openldap/slapd.d
+ 
+Re-activate and confirmation of service
+[root@localhost ~]# systemctl restart slapd
+[root@localhost ~]# journalctl -xn -u slapd
+ 
+Ensure that the module is loaded
+[root@localhost ~]# less /etc/openldap/slapd.d/cn=config/~~module
+[root@localhost ~]# slappasswd -h '{SHA256}' -o module-load=/usr/lib64/openldap/pw-sha2.so -s foobar
+ 
