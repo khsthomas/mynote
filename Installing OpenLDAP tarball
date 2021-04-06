@@ -1,0 +1,161 @@
+Installing OpenLDAP from Source on CentOS 7
+
+This guide will walk you through installing OpenLDAP from source on CentOS 7. It should work with Red Hat Enterprise Linux (RHEL) 7, Oracle Linux 7, Scientific Linux 7, and any other RHEL clones. I am assuming you are able to use a command line shell and text editor on a UNIX like operating system. This guide was tested on OpenLDAP 2.4.47. All of the examples use this version as well.
+
+I recommend installing OpenLDAP from source instead of the package manager to ensure you get the latest bug and security fixes, you have the features you need, and to ensure it is built the same way when you update. I had an experience where I installed OpenLDAP from an OS repository, updated it from the repository, and found the TLS library it was built with had been changed! This caused the server daemon to not start. Fortunately, it was part of a cluster, so it didn’t cause a service outage.
+
+Get to Know the Official Documentation
+I recommend getting familiar with the official documentation of any software you use. The official administrator’s guide covers the software pretty well, so take a few minutes to browse through the table of contents before getting started. I also recommending skimming through the quick start guide and the building and installing chapter of the administrator’s guide. Note that at the end of the administrator’s guide, there is a list of links to various Internet Engineering Task Force Requests For Comments specifying various standards applicable to OpenLDAP. It wouldn’t hurt to take a few minutes to browse through these and read the abstracts if you aren’t well versed with LDAP and directory servers. If you want to get a better understanding of how X.500 directories structure their data, RFC 4512 would be a good place to start.
+
+Preparation
+There isn’t much preparation other than obtaining the source and installing a few packages. Set a few environment variables to save some typing. I am assuming you are using bash since it is the default shell on CentOS 7. All of the commands in this guide should be executed as root. Create the file /root/.ldap-env with the following contents:
+
+export PATH=/opt/openldap-current/bin:/opt/openldap-current/sbin:/opt/openldap-current/libexec:$PATH
+export OWNER=ldap:ldap
+export CONFIG=/opt/openldap-current/etc/openldap/slapd.d
+Now source the file:
+
+source /root/.ldap-env
+Source this file whenever you will be working with your OpenLDAP installation. I would consider adding it to your login and/or invocation scripts.
+
+Download the source to your system. On the download page, you have to use the release link on the right column of the table. If you prefer, the following command will download the latest version as of 2019, April 6.
+
+curl "ftp://ftp.openldap.org/pub/OpenLDAP/openldap-release/openldap-2.4.47.tgz" > openldap-2.4.47.tgz
+Install the packages that you will need to compile the source. Use the following command:
+
+yum install make gcc openssl-devel libtool-ltdl-devel libdb-devel cyrus-sasl-devel
+Configuring and Compiling
+Extract the source tar file:
+
+tar xf openldap-2.4.47.tgz 
+cd openldap-2.4.47
+Configure the source. I am assuming you will be using MDB to store your data. If there is any interest in using some of the other options, such as perl or an RDBMS, send a message through the contact page. Using these options will require additional OS packages and configure script options.
+
+./configure --with-cyrus-sasl --with-tls=openssl --enable-overlays=mod \
+    --enable-backends=mod --disable-perl --disable-ndb --enable-crypt \
+    --enable-modules --enable-dynamic --enable-syslog --enable-debug --enable-local \
+    --enable-spasswd --disable-sql --prefix=/opt/openldap-2.4.47
+Compile the source:
+
+make depend
+make
+cd contrib/slapd-modules/passwd/sha2
+make
+cd ../../../..
+Now run the test suite to make sure everything went ok. It should take roughly an hour depending on your hardware.
+
+make test > test_results.txt
+grep '>>>>>.*failed' test_results.txt
+If any of the tests fail, I advise fixing whatever went wrong before proceeding, especially in a production environment.
+
+Installing the Software
+By default, OpenLDAP stores passwords as salted SHA-1 hashes. Since SHA-1 is no longer considered secure, I have included instructions on how to install a module that will enable OpenLDAP to use SHA-2 hashes. To save the trouble of messing with your systemd unit file and directory configuration after an upgrade, we will create a symbolic link to the installation directory.
+
+make install
+cd contrib/slapd-modules/passwd/sha2
+make DESTDIR=/opt/openldap-2.4.47 install
+../../../../libtool --finish /opt/openldap-2.4.47/usr/local/libexec/openldap
+cd  /opt/openldap-2.4.47/usr/local/libexec/openldap
+mv * /opt/openldap-2.4.47/libexec/openldap
+Create the server’s user and group. The commands below will create the same user and group as the package manager would if you were to install the OpenLDAP server from the repositories.
+
+groupadd -g 55 ldap
+useradd  -g 55 -u 55 -s /sbin/nologin -d /var/lib/ldap -c "OpenLDAP server" ldap
+Fix the permissions on a few directories:
+
+cd /opt/openldap-2.4.47
+find . -type d -exec chmod 755 {} \;
+cd var/run/
+chown $OWNER .
+Create a symbolic link that points to the version of OpenLDAP you are currently using:
+
+ln -s /opt/openldap-2.4.47 /opt/openldap-current
+Create a service unit file so systemd can start and stop the server on boot and shutdown. Paste the following into the file /etc/systemd/system/slapd-current.service.
+
+[Unit]
+Description=OpenLDAP Server Daemon
+After=syslog.target network-online.target
+
+[Service]
+Type=forking
+PIDFile=/opt/openldap-current/var/run/slapd.pid
+EnvironmentFile=/etc/sysconfig/slapd-current
+
+ExecStart=/opt/openldap-current/libexec/slapd -u ldap -g ldap -h ${SLAPD_URLS} $SLAPD_OPTIONS
+
+[Install]
+WantedBy=multi-user.target
+Create the environment file (/etc/sysconfig/slapd-current) specified in the previous step. It should have the following contents:
+
+SLAPD_OPTIONS="-F /opt/openldap-current/etc/openldap/slapd.d"
+SLAPD_URLS="ldapi:/// ldap:/// ldaps:///"
+Configure the Server
+Create a minimal server configuration and start it. First, create or obtain a TLS certificate. You don’t have to do this, but considering OpenLDAP is commonly used for authentication, it would ideal to encrypt communications with the server. If you decide to skip this, remove ldaps:/// from your environment file. I keep all of my TLS files in /pki. Create the /pki directory and a self-signed certificate with the following commands. Make sure the common name is the fully qualified domain name of your OpenLDAP server.
+
+mkdir /pki
+openssl req -days 500 -newkey rsa:4096 -keyout /pki/ldapkey.pem -nodes \
+    -sha256 -x509 -out /pki/ldapcert.pem
+chown $OWNER /pki/ldapkey.pem
+chmod 400 /pki/ldapkey.pem
+cat /pki/ldapcert.pem >> /pki/cacerts.pem
+Edit the file /opt/openldap-current/etc/openldap/slapd.ldif and replace the entire thing with the following. If you opted to skip TLS, skip the lines that start with olcTLS.
+
+dn: cn=config
+objectClass: olcGlobal
+cn: config
+olcArgsFile: /opt/openldap-current/var/run/slapd.args
+olcPidFile: /opt/openldap-current/var/run/slapd.pid
+olcTLSCACertificateFile: /pki/cacerts.pem
+olcTLSCertificateFile: /pki/ldapcert.pem
+olcTLSCertificateKeyFile: /pki/ldapkey.pem
+olcTLSCipherSuite: TLSv1.2:HIGH:!aNULL:!eNULL
+olcTLSProtocolMin: 3.3
+
+dn: cn=schema,cn=config
+objectClass: olcSchemaConfig
+cn: schema
+
+dn: cn=module,cn=config
+objectClass: olcModuleList
+cn: module
+olcModulepath: /opt/openldap-current/libexec/openldap
+olcModuleload: back_mdb.la
+olcModuleload: pw-sha2.la
+
+include: file:///opt/openldap-current/etc/openldap/schema/core.ldif
+include: file:///opt/openldap-current/etc/openldap/schema/cosine.ldif
+include: file:///opt/openldap-current/etc/openldap/schema/nis.ldif
+include: file:///opt/openldap-current/etc/openldap/schema/inetorgperson.ldif
+include: file:///opt/openldap-current/etc/openldap/schema/ppolicy.ldif
+
+dn: olcDatabase=frontend,cn=config
+objectClass: olcDatabaseConfig
+objectClass: olcFrontendConfig
+olcDatabase: frontend
+olcPasswordHash: {SSHA512}
+olcAccess: to * by dn.base="gidNumber=0+uidNumber=0,cn=peercred,cn=external,cn=auth" manage by * none
+
+dn: olcDatabase=config,cn=config
+objectClass: olcDatabaseConfig
+olcDatabase: config
+olcRootDN: cn=config
+olcAccess: to * by dn.base="gidNumber=0+uidNumber=0,cn=peercred,cn=external,cn=auth" manage by * none
+Create the configuration directory, load the configuration ldif, and set the permissions on the configuration directory.
+
+cd /opt/openldap-current/etc/openldap
+mkdir slapd.d || rm -rf slapd.d/*
+slapadd -n 0 -F slapd.d -l slapd.ldif
+chown -R $OWNER slapd.d
+chmod -R o-rwx slapd.d
+Now load the unit file and start the server:
+
+systemctl daemon-reload
+systemctl start slapd-current
+If everything went as it should, slapd should be up and running. Verify it is running with the command:
+
+systemctl status slapd-current
+References
+OpenLDAP Administrator’s Guide
+OpenLDAP Manual Pages
+How To Create Self Signed Certificates
+RFC 4512
