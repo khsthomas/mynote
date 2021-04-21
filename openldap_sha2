@@ -100,3 +100,5 @@ Ensure that the module is loaded
 [root@localhost ~]# less /etc/openldap/slapd.d/cn=config/~~module
 [root@localhost ~]# slappasswd -h '{SHA256}' -o module-load=/usr/lib64/openldap/pw-sha2.so -s foobar
  
+Test Authentication
+ldapsearch -x -b "ou=portal,dc=ntt,dc=com,dc=hk" -D "cn=thomas.chen@kooppi.com,ou=staff,ou=portal,dc=ntt,dc=com,dc=hk" -w '!QAZ2wsx'
