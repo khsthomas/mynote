@@ -1,3 +1,7 @@
+#openldap.src
+#bcrypt
+cp -pR bcrypt openldap.src/contrib/slapd-modules/passwd/
+cd openldap.src
 
 ./configure --prefix=/usr/local --enable-modules
 make depend
@@ -6,15 +10,23 @@ make install
 
 cd contrib/slapd-modules/passwd/bcrypt/
 # vi Makefile
+# Edit Makefile, replace the libldap_r to libldap.
 make clean
 make
 make install
 cp  -pR /usr/local/libexec/openldap/pw-bcrypt* /usr/lib64/openldap/
 
-# remove slapd tar ball execution files from PATH(/usr/local/sbin)
+vi /etc/openldap/slapd.conf
+# add 2 lines config for bcrypt
+# moduleload pw-bcrypt.la 
+# password-hash   {BCRYPT}
+
+# remove the openldap tar ball installed execution files from PATH(/usr/local/sbin)
 mv /usr/local/sbin /usr/local/sbin.slap
 mkdir /usr/local/sbin
 
+# test
+# mkdir /etc/openldap/slapd.d (if the directory is not exist)
 slaptest -f /etc/openldap/slapd.conf -F /etc/openldap/slapd.d
 chown -R ldap:ldap /etc/openldap/slapd.d
 
