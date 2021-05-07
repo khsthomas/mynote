@@ -1,0 +1,22 @@
+
+./configure --prefix=/usr/local --enable-modules
+make depend
+make
+make install
+
+cd contrib/slapd-modules/passwd/bcrypt/
+# vi Makefile
+make clean
+make
+make install
+cp  -pR /usr/local/libexec/openldap/pw-bcrypt* /usr/lib64/openldap/
+
+# remove slapd tar ball execution files from PATH(/usr/local/sbin)
+mv /usr/local/sbin /usr/local/sbin.slap
+mkdir /usr/local/sbin
+
+slaptest -f /etc/openldap/slapd.conf -F /etc/openldap/slapd.d
+chown -R ldap:ldap /etc/openldap/slapd.d
+
+systemctl restart slapd
+systemctl status slapd
