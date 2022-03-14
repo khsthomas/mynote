@@ -28,3 +28,18 @@ git remote rename origin old-origin
 git remote add origin https://git.devops.pd.ntt.hk/thomas.chen/thomas-test.git
 git push -u origin --all
 git push -u origin --tags
+
+Push to multiple Repos
+# show remote info
+git remote -v                                                                                     
+  origin  https://git.devops.pd.ntt.hk/new-portal/new-portal-sso.git (fetch)
+  origin  https://git.devops.pd.ntt.hk/new-portal/new-portal-sso.git (push)
+# add new repo
+git remote set-url --add --push origin  https://marxtom@bitbucket.org/marxtom/new-portal-sso.git
+# re-add repo
+git remote set-url --add --push origin  https://git.devops.pd.ntt.hk/new-portal/new-portal-sso.git
+# check result
+git remote -v                                                                                     
+  origin  https://git.devops.pd.ntt.hk/new-portal/new-portal-sso.git (fetch)
+  origin  https://marxtom@bitbucket.org/marxtom/new-portal-sso.git (push)
+  origin  https://git.devops.pd.ntt.hk/new-portal/new-portal-sso.git (push)
