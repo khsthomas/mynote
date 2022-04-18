@@ -20,3 +20,26 @@ ldapsearch -h 192.168.1.1 -p 389  -D "cn=Manager,dc=ntt,dc=com,dc=hk" -w kl,m2we
 ldapsearch -h 192.168.1.1 -p 389  -D "cn=Manager,dc=ntt,dc=com,dc=hk" -w kl,m2we3 -s base -b "" namingContexts
 # 查節點
 ldapsearch -h 192.168.1.1 -p 389  -D "cn=Manager,dc=ntt,dc=com,dc=hk" -w kl,m2we3 -s base -b "ou=portal,dc=ntt,dc=com,dc=hk"
+#
+ldapsearch -x -b ou=customer,ou=portal,dc=ntt,dc=com,dc=hk cn= user1@accentrix.com
+
+# add dev.ldif
+ldapadd -x -D"cn=Manager,dc=ntt,dc=com,dc=hk" -w 'kl,m2we3' -f dev.ldif 
+
+# delete entry
+ldapdelete  cn=del3.democomp,ou=customer,ou=portal,dc=ntt,dc=com,dc=hk -D "cn=manager,dc=ntt,dc=com,dc=hk"  -w kl,m2we3
+
+# change password
+ldappasswd -x  -D " cn=manager,dc=ntt,dc=com,dc=hk " -w kl,m2we3  "cn=del3.democomp,ou=customer,ou=portal,dc=ntt,dc=com,dc=hk"
+
+# test authenticate
+ldapwhoami -x -D cn=cm.system.admin,ou=staff,ou=portal,dc=ntt,dc=com,dc=hk  -w P@ssw0rd!
+
+# backup
+If the base DN is known:
+  ldapsearch -x -h localhost -b "<base dn>" | gzip > ldapsearch-data.gz
+With an empty base DN:
+  ldapsearch -x -h localhost -b "" | gzip > ldapsearch-data.gz
+If authentication is required:
+  ldapsearch -x -h localhost -D "<admin dn>" -w "<admin-password>" 
+       -b "<base dn>" | gzip > ldapsearch-data.gz
