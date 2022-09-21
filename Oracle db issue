@@ -1,0 +1,6 @@
+Fix:
+ORA-00001: unique constraint (BRAVORRM.SYS_C0012884) violated
+Sul:
+select max(seq_no) from tb_user_action_log;
+select seq_user_action_log_seqno.nextval from dual;
+alter sequence seq_user_action_log_seqno restart start with 583955;
