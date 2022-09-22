@@ -1,0 +1,19 @@
+Q:
+I came across some problems when using kubectl:
+Create a new client bundle, download and unzip, then exec eval "$(<env.sh)". Got error as below:
+% kubectl get pod
+Error from server (Forbidden): pods is forbidden: User "10a64a25-197d-47be-a688-57b3a7101a9c" cannot list resource "pods" in API group "" in the namespace "default": access denied
+ 
+Login UCP 1:
+[root@dclab-ucp-01 ~]# kubectl get pod
+The connection to the server localhost:8080 was refused - did you specify the right host or port?
+
+A:
+I never try problem 1, did you get the client bundle from SIT UCP?
+Can you try source env.sh instead of eval "$(<env.sh)"?
+
+[root@dclab-ucp-01 ~]# cd kubectl/
+[root@dclab-ucp-01 kubectl]# source env.sh
+Cluster "ucp_192.168.54.20:6443_admin" set.
+User "ucp_192.168.54.20:6443_admin" set.
+Context "ucp_192.168.54.20:6443_admin" modified.
