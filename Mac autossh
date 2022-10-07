@@ -1,0 +1,67 @@
+首先我们来生成公钥文件。Terminal下面输入
+
+ssh-keygen -t rsa
+
+之后在Terminal的提示里按回车。直到生成id_rsa.pub文件，生成的id_rsa.pub文件在 ~/.ssh下面。Terminal下面输入
+
+cd ~/.ssh
+cp id_rsa.pub authorized_keys
+
+上面第一句的意思是进入~/.ssh文件夹，第二句是复制id_rsa.pub为authorized_keys文件。
+
+下面我们就把得到的authorized_keys文件上传到ssh服务上。
+
+ssh username@yourserver.com mkdir .ssh
+scp -p ~/.ssh/authorized_keys username@yourserver.com:.ssh/
+
+把上面username改成你的ssh用户名，yourserver.com改成你的ssh服务器地址或者ip。
+
+我们可以在Terminal上输入ssh命令测试公钥是否成功
+
+ssh username@yourserver.com
+
+如果没有输入密码就登录成功了，那就证明公钥生效了。
+
+弄好了免密码连接ssh，现在我们继续解决断线重连的问题。在这里我们需要用到autossh这个工具。autossh是一个非常牛X的工具，他可以监控ssh进程是否正常运行，而且他还能随时监控ssh通道是否能够正常通信，如果一旦ssh进程死掉或者ssh不通信了，autossh都会自动开启新的ssh进程并自动连接。所以autossh是我们全天候无障碍通信的最佳帮手。如果你的Mac里使用了Homebrew，那么安装autossh是非常简单的事情。只需要。
+
+brew install autossh
+
+这样就可以了。如果你的Mac里没有Homebrew，那么有MacPorts也是一样的。
+
+sudo port install autossh
+
+如果你连MacPorts也没有，好吧，你只能去下载autossh然后自动编译了。
+
+安装好了autossh，我们继续使用launchd设置开机自动启动autossh连接ssh -D。
+
+在/Library/LaunchDaemons/下或者~/Library/LaunchAgents/创建一个plist文件，文件名为 com.hebine.sshd.plist （同样这个文件名大家可以根据自己的喜好随便选。）
+
+Terminal下输入命令
+
+vi ~/Library/LaunchAgents/com.hebine.sshd.plist
+
+文件内输入以下内容
+
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>Label</key>
+      <string>com.hebine.sshd</string>
+    <key>ProgramArguments</key>
+      <array>
+        <string>/usr/local/bin/autossh</string>
+        <string>-D</string>
+        <string>9000</string>
+        <string>username@yourserver.com</string>
+      </array>
+    <key>KeepAlive</key>
+      <true/>
+    <key>RunAtLoad</key>
+      <true/>
+  </dict>
+</plist>
+
+你可以使用下面的命令加载上面的launchd服务。
+
+launchctl load ~/Library/LaunchAgents/com.hebine.sshd.plist
