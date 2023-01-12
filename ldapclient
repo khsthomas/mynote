@@ -43,3 +43,11 @@ With an empty base DN:
 If authentication is required:
   ldapsearch -x -h localhost -D "<admin dn>" -w "<admin-password>" 
        -b "<base dn>" | gzip > ldapsearch-data.gz
+       
+# check for the flag :
+## Using slapd.conf file :
+grep ppolicy_hash_cleartext slapd.conf
+
+## Using on-line configuration (OLC) :
+slapcat -n 0 -a olcPPolicyHashCleartext=*
+
