@@ -51,3 +51,5 @@ grep ppolicy_hash_cleartext slapd.conf
 ## Using on-line configuration (OLC) :
 slapcat -n 0 -a olcPPolicyHashCleartext=*
 
+# search sit user
+ldapsearch -x -H ldap://new-portal-ds-1.new-portal-ds-headless.dcms-database-sit.svc.cluster.local -b "cn=thomas3@gg,ou=customer,ou=portal,dc=ntt,dc=com,dc=hk" -D "cn=Manager,dc=ntt,dc=com,dc=hk" -w "kl,m2we3"
