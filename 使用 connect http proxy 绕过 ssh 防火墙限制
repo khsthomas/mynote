@@ -1,0 +1,12 @@
+使用 connect http proxy 绕过 ssh 防火墙限制 
+1、安装 connect
+brew install connect
+ 
+
+2、配置 ~/.ssh/config
+Host *
+  ProxyCommand connect -H your.proxy.server:proxy_port %h %p
+
+
+3、 SSH command
+ssh -o ProxyCommand 'connect -S your.proxy.server:proxy_port %h %p' {USER}@{HOST}
