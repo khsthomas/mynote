@@ -1,0 +1,7 @@
+openssl req -new -newkey rsa:2048 -nodes -keyout server.key -out server.csr
+openssl x509 -in server.csr -out server.crt -req -signkey server.key -days 3650
+```
+Signature ok
+subject=/C=HK/ST=HongKong/L=HongKong/O=NTT/OU=asia/CN=global.ntt/emailAddress=a.lee@global.ntt
+Getting Private key
+```
