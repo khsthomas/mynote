@@ -1,0 +1,1 @@
+kubectl get -nmyns secret mysec -o json | jq '.data | map_values(@base64d)'
