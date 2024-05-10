@@ -1,1 +1,3 @@
+取得 secret 值
 kubectl get -nmyns secret mysec -o json | jq '.data | map_values(@base64d)'
+kubectl get secrets/db-user-pass --template={{.data.password}} | base64 -D
