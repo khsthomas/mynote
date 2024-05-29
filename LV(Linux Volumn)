@@ -1,0 +1,16 @@
+#shows the details of the volume group
+vgdisplay
+
+#to tell the system to use all available space with a structure like
+sudo lvextend -t -r -l+100%free /dev/fedora_localhost-live/root
+
+#reduce vl size. Note that the file system must not be mounted when doing the reduce, it will warn you about that as well.
+sudo lvreduce -r -L 800g -t fedora_localhost-live/home
+
+#show lv devices status.
+#the output of sudo vgscan and sudo lvscan as well.
+sudo lvscan
+ACTIVE ‘/dev/fedora_localhost-live/swap’ [<7.72 GiB] inherit
+ACTIVE ‘/dev/fedora_localhost-live/home’ [800.00 GiB] inherit
+ACTIVE ‘/dev/fedora_localhost-live/root’ [74.95 GiB] inherit
+
