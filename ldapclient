@@ -20,8 +20,10 @@ ldapsearch -h 192.168.1.1 -p 389  -D "cn=Manager,dc=ntt,dc=com,dc=hk" -w kl,m2we
 ldapsearch -h 192.168.1.1 -p 389  -D "cn=Manager,dc=ntt,dc=com,dc=hk" -w kl,m2we3 -s base -b "" namingContexts
 # 查節點
 ldapsearch -h 192.168.1.1 -p 389  -D "cn=Manager,dc=ntt,dc=com,dc=hk" -w kl,m2we3 -s base -b "ou=portal,dc=ntt,dc=com,dc=hk"
-#
-ldapsearch -x -b ou=customer,ou=portal,dc=ntt,dc=com,dc=hk cn= user1@accentrix.com
+
+# search sit user
+ldapsearch -x -H ldap://new-portal-ds-1.new-portal-ds-headless.dcms-database-sit.svc.cluster.local -b "cn=thomas3@gg,ou=customer,ou=portal,dc=ntt,dc=com,dc=hk" -D "cn=Manager,dc=ntt,dc=com,dc=hk" -w "kl,m2we3"
+ldapsearch -D "cn=Manager,dc=ntt,dc=com,dc=hk" -w kl,m2we3 -s base -b "cn=thomas3@gg,ou=customer,ou=portal,dc=ntt,dc=com,dc=hk"
 
 # add dev.ldif
 ldapadd -x -D"cn=Manager,dc=ntt,dc=com,dc=hk" -w 'kl,m2we3' -f dev.ldif 
@@ -51,5 +53,4 @@ grep ppolicy_hash_cleartext slapd.conf
 ## Using on-line configuration (OLC) :
 slapcat -n 0 -a olcPPolicyHashCleartext=*
 
-# search sit user
-ldapsearch -x -H ldap://new-portal-ds-1.new-portal-ds-headless.dcms-database-sit.svc.cluster.local -b "cn=thomas3@gg,ou=customer,ou=portal,dc=ntt,dc=com,dc=hk" -D "cn=Manager,dc=ntt,dc=com,dc=hk" -w "kl,m2we3"
+
