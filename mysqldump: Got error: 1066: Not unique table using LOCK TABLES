@@ -1,0 +1,10 @@
+mysqldump: Got error: 1066: Not unique table/alias: 'dept' when using LOCK TABLES
+
+报错原因是 /etc/my.conf
+
+#1. lower_case_table_names=1  这个参数，这个参数是让mysql的表名不区分大小写，註解掉。
+#2. 有同名但大小寫不同的 tables.
+
+解決：加上  --skip-lock-tables
+mysqldump -uroot -p --skip-lock-tables profile_mgmt > profile_mgmt.sql
+
