@@ -1,0 +1,36 @@
+https://stackoverflow.com/questions/59958274/unable-to-connect-to-the-server-net-http-tls-handshake-timeout
+
+Just happened to me on a new Windows 10 install with Ubuntu distro in WSL2. I solved the problem by running:
+
+$ sudo ifconfig eth0 mtu 1350
+or for modern Linux distros that deprecated ifconfig:
+
+$ sudo ip link set dev eth0 mtu 1350
+(BTW, I was on a VPN connection when trying the 'kubectl get pods' command)
+
+
+edited Jul 9, 2023 at 9:06
+answered Apr 3, 2022 at 7:03
+Dror Harari's user avatar
+Dror Harari
+3,27722 gold badges2929 silver badges2525 bronze badges
+Thanks! I forgot about this! I was using Wireguard on Windows + WSL2. If there is any network problem usually it was MTU issue. – 
+MichalTheDweller
+ CommentedAug 22, 2022 at 11:44
+we had the same issue Windows + WSL2, Over wireguard we decreased the MTU to 1400. Wireguard Server was hosted at cloud provider. – 
+igiannak
+ CommentedSep 14, 2022 at 15:32
+1
+Changing the MTU did the trick for me. Could you please elaborate on how MTU affects this? – 
+Koshur
+ CommentedJan 25, 2023 at 8:11
+@Koshur - I haven't debugged this but usually this happens when the "Do-not-fragment" bit is set on a packet that is routed through a network whose MTU is set to a lower number than the packet size. – 
+Dror Harari
+ CommentedMar 4, 2023 at 2:53
+1
+It seems that ifconfig is deprecated. This is an alternative command: sudo ip link set dev eth0 mtu 1350 – 
+Ecyrb
+ CommentedJun 2, 2023 at 15:58
+Man I spent hours trying to figure it out. I was on VPN and could do everything from Windows, but no matter what I do on WSL it simply could not do anything. Logged in just to upvote and leave a big thank you :) – 
+Jasko
+ CommentedJul 26 at 17:31
