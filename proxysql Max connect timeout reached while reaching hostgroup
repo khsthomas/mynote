@@ -1,0 +1,38 @@
+$ kubectl logs ui-builder-db-migration-79db4fc4bd-nl2mt -nocean-ui-builder
+ERROR: Unable to obtain connection from database (jdbc:mysql://proxysql.ocean-infra:3306/ui_builder) for user 'ui_builder': Max connect timeout reached while reaching hostgroup 3000 after 10000ms
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+SQL State  : HY000
+Error Code : 9001
+Message    : Max connect timeout reached while reaching hostgroup 3000 after 10000ms
+
+Caused by: java.sql.SQLException: Max connect timeout reached while reaching hostgroup 3000 after 10000ms
+
+Solution Try:
+Delete, and re-add the user from mysql_users.
+Delete, and re-add the host from mysql_servers.
+Be sure to load to run after delete and after insert.
+
+# mysql -u admin -padmin -h proxysqlhost -P6032 --prompt='Admin> '
+
+Admin> select * from mysql_users;
++-----------------------+-------------------------------------------+--------+---------+-------------------+-----------------------+---------------+------------------------+--------------+---------+----------+-----------------+---------+
+| username              | password                                  | active | use_ssl | default_hostgroup | default_schema        | schema_locked | transaction_persistent | fast_forward | backend | frontend | max_connections | comment |
++-----------------------+-------------------------------------------+--------+---------+-------------------+-----------------------+---------------+------------------------+--------------+---------+----------+-----------------+---------+
+| xxxxxxxxxx            | *DC36F3499FEC638F05411234567 | 1      | 0       | 3000              | xxxxxxxxxx           | 0             | 1                      | 0            | 1       | 1        | 1000            |         |
++-----------------------+-------------------------------------------+--------+---------+-------------------+-----------------------+---------------+------------------------+--------------+---------+----------+-----------------+---------+
+delete from mysql_users where username='xxxxxxxxxx';
+insert into mysql_users values ('xxxxxxxxxx','*DC36F3499FEC638F05411234567','1','0','3000','xxxxxxxxxx','0','1','0','1','1','1000','');
+
+
+Admin> Select * from mysql_servers;
++--------------+----------------------------------------+------+-----------+--------+--------+-------------+-----------------+---------------------+---------+----------------+---------+
+| hostgroup_id | hostname                               | port | gtid_port | status | weight | compression | max_connections | max_replication_lag | use_ssl | max_latency_ms | comment |
++--------------+----------------------------------------+------+-----------+--------+--------+-------------+-----------------+---------------------+---------+----------------+---------+
+| 3000         | percona-pxc-0.percona-pxc.mymodul      | 3306 | 0         | ONLINE | 1      | 0           | 1000            | 0                   | 0       | 0              |         |
+| 3000         | percona-pxc-1.percona-pxc.mymodul      | 3306 | 0         | ONLINE | 1      | 0           | 1000            | 0                   | 0       | 0              |         |
++--------------+----------------------------------------+------+-----------+--------+--------+-------------+-----------------+---------------------+---------+----------------+---------+
+delete from mysql_servers where hostgroup_id='3000';
+insert into mysql_servers values ('3000','percona-pxc-0.percona-pxc.mymodul','3306','0','ONLINE','1','0','1000','0','0','0','');
+insert into mysql_servers values ('3000','percona-pxc-1.percona-pxc.mymodul','3306','0','ONLINE','1','0','1000','0','0','0','');
+
+# systemctl restart proxysql
