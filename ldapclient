@@ -32,7 +32,7 @@ ldapadd -x -D"cn=Manager,dc=ntt,dc=com,dc=hk" -w 'kl,m2we3' -f dev.ldif
 ldapdelete  cn=del3.democomp,ou=customer,ou=portal,dc=ntt,dc=com,dc=hk -D "cn=manager,dc=ntt,dc=com,dc=hk"  -w kl,m2we3
 
 # change password
-ldappasswd -x  -D " cn=manager,dc=ntt,dc=com,dc=hk " -w kl,m2we3  "cn=del3.democomp,ou=customer,ou=portal,dc=ntt,dc=com,dc=hk"
+ldappasswd -x  -D "cn=manager,dc=ntt,dc=com,dc=hk" -w "kl,m2we3" -s "NewPassword123!" "cn=del3.democomp,ou=customer,ou=portal,dc=ntt,dc=com,dc=hk"
 
 # test authenticate
 ldapwhoami -x -D cn=cm.system.admin,ou=staff,ou=portal,dc=ntt,dc=com,dc=hk  -w P@ssw0rd!
