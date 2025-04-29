@@ -1,0 +1,287 @@
+# Keycloak and EMQX Setup Procedure - X509 Fix
+
+## Overview
+
+This guide configures Keycloak 23.0.6 on VM1 (`sso.domain`) and EMQX 5.6.1 on VM2 (`emqx.domain`) with TLS, enabling certificate-based JWT issuance for MQTT publishing. It addresses the issue where **X509/Validate Client Certificate** is missing in Keycloak’s authentication flow configuration, providing solutions to restore it or use **X509/Validate Username** as a workaround. EMQX is set to ignore role-based authorization, skipping the need for a Keycloak mapper.
+
+## Requirements Recap
+
+1. Certificate-based login to Keycloak for JWT issuance.
+2. JWT-based publishing to EMQX.
+3. TLS for all communications.
+4. Keycloak on VM1, EMQX on VM2.
+5. `sso.domain` → Keycloak, `emqx.domain` → EMQX.
+6. Keycloak 23.0.6, EMQX 5.6.1.
+7. Ignore EMQX role-based authorization (no `roles` claim).
+8. Fix missing **X509/Validate Client Certificate** in authentication flow.
+
+## Prerequisites
+
+- Two Ubuntu 22.04 VMs with network connectivity.
+- Java 17 for Keycloak.
+- TLS certificates for `sso.domain` and `emqx.domain` (self-signed for testing).
+- DNS: `sso.domain` → VM1, `emqx.domain` → VM2.
+- OpenSSL installed.
+- Ports open: 8443 (Keycloak), 1883/8883 (EMQX MQTT), 8083 (EMQX Dashboard).
+
+## VM1: Keycloak Setup (sso.domain)
+
+### Step 1: Install Java
+
+```bash
+sudo apt update
+sudo apt install openjdk-17-jdk -y
+java -version
+```
+
+### Step 2: Install Keycloak 23.0.6
+
+```bash
+wget https://github.com/keycloak/keycloak/releases/download/23.0.6/keycloak-23.0.6.tar.gz
+tar -xvzf keycloak-23.0.6.tar.gz
+sudo mv keycloak-23.0.6 /opt/keycloak
+```
+
+### Step 3: Configure TLS
+
+1. Generate self-signed certificate:
+
+   ```bash
+   mkdir /opt/keycloak/certs
+   openssl req -x509 -newkey rsa:4096 -keyout /opt/keycloak/certs/sso.pd.ntt.hk.key -out /opt/keycloak/certs/sso.pd.ntt.hk.crt -days 365 -nodes -extensions v3_req -config openssl.cnf
+   ```
+
+2. Create PKCS12 keystore:
+
+   ```bash
+   openssl pkcs12 -export -in /opt/keycloak/certs/sso.pd.ntt.hk.crt -inkey /opt/keycloak/certs/sso.pd.ntt.hk.key -out /opt/keycloak/conf/server.keystore -name server -passout pass:password
+   ```
+
+3. Edit `/opt/keycloak/conf/keycloak.conf`:
+
+   ```
+   https-port=8443
+   https-key-store-file=/opt/keycloak/conf/server.keystore
+   https-key-store-password=password
+   https-client-auth=request
+   #hostname=sso.pd.ntt.hk
+   ```
+
+   - `https-client-auth=request` enables mutual TLS, prompting for client certificates without requiring them (critical for X.509 authentication).
+
+### Step 4: Start Keycloak
+
+```bash
+# Startup on production
+cd /opt/keycloak/bin
+./kc.sh start --optimized
+
+# Startup on development
+cd /opt/keycloak/bin
+./kc.sh start-dev >> keycloak.log &
+```
+can be replaced with
+./kc.sh start-dev --log="file,console"
+The default log file location is at /data/log
+
+### Step 5: Create Admin User
+
+Add below statements in to /opt/keycloak/conf/keycloak.conf:
+```bash
+#!/bin/sh
+
+export KEYCLOAK_ADMIN=admin
+export KEYCLOAK_ADMIN_PASSWORD=<admin-password>
+```
+
+### Step 6: Configure Keycloak Realm and Client
+
+1. **Access Admin Console**:
+   - Navigate to `https://sso.pd.ntt.hk:8443/admin`.
+   - Log in with `admin`/<admin-password>.
+
+2. **Create Realm**:
+   - Top-left dropdown (default: `Master`) > **Create realm**.
+   - **Realm name**: `myrealm`.
+   - Click **Create**.
+
+3. **Create Client for EMQX**:
+   - In **Clients**, click **Create client**.
+   - **General Settings**:
+     - **Client type**: `OpenID Connect`.
+     - **Client ID**: `emqx-client`.
+     - Click **Next**.
+   - **Capability config**:
+     - Enable **Client authentication**: `ON`.
+     - Enable **Standard flow**: `ON`.
+     - Enable **Direct access grants**: `ON`.
+     - Enable **Service accounts roles**: `ON`.
+     - Click **Next**.
+   - **Login settings**:
+     - **Valid redirect URIs**: `https://emqx.pd.ntt.hk:8083/*`.
+     - Click **Save**.
+   - In `emqx-client` > **Credentials**:
+     - Copy **Client secret** (save securely).
+
+### Step 7: Configure Certificate-Based Authentication
+
+1. **Generate CA and Client Certificate**:
+
+   ```bash
+   # Create CA
+   openssl req -x509 -newkey rsa:4096 -keyout /opt/keycloak/certs/ca.key -out /opt/keycloak/certs/ca.crt -days 365 -nodes -subj "/CN=TestCA"
+   # Create client key and CSR
+   openssl req -newkey rsa:2048 -keyout /opt/keycloak/certs/client.key -out /opt/keycloak/certs/client.csr -nodes -subj "/CN=client1"
+   # Sign client certificate
+   openssl x509 -req -in /opt/keycloak/certs/client.csr -CA /opt/keycloak/certs/ca.crt -CAkey /opt/keycloak/certs/ca.key -CAcreateserial -out /opt/keycloak/certs/client.crt -days 365
+   # Convert to PKCS12
+   openssl pkcs12 -export -in /opt/keycloak/certs/client.crt -inkey /opt/keycloak/certs/client.key -out /opt/keycloak/certs/client.p12 -name client -passout pass:password
+   ```
+
+2. **Update Truststore**:
+
+   ```bash
+   keytool -import -alias ca -file /opt/keycloak/certs/ca.crt -keystore /opt/keycloak/conf/server.keystore -storepass password -noprompt
+   ```
+
+3. **Create Client for Certificate Authentication**:
+
+   - In **Clients**, click **Create client**.
+   - **General Settings**:
+     - **Client type**: `OpenID Connect`.
+     - **Client ID**: `cert-client`.
+     - Click **Next**.
+   - **Capability config**:
+     - Enable **Client authentication**: `ON`.
+     - Enable **Standard flow**: `ON`.
+     - Enable **Direct access grants**: `ON`.
+     - Enable **Service accounts roles**: `ON`.
+     - Click **Next**.
+   - **Login settings**:
+     - **Valid redirect URIs**: `https://sso.pd.ntt.hk:8443/*`.
+     - Click **Save**.
+   - In `cert-client` > **Credentials**:
+     - Copy **Client secret** (save securely).
+
+### Step 8: Test Certificate Login
+
+1. **JWT Test**:
+   ```bash
+   curl -k --cert /opt/keycloak/certs/client.crt --key /opt/keycloak/certs/client.key -X POST \
+     https://sso.pd.ntt.hk:8443/realms/myrealm/protocol/openid-connect/token \
+     -d "grant_type=client_credentials&client_id=cert-client&client_secret=<client-secret>"
+   ```
+   - Replace `<client-secret>` with `cert-client` secret.
+   - Verify JWT on `jwt.io`.
+
+## VM2: EMQX Setup (emqx.domain)
+
+### Step 1: Install EMQX 5.6.1
+
+```bash
+sudo apt update
+wget https://www.emqx.io/downloads/v5.6.1/emqx-5.6.1-ubuntu22.04-amd64.deb
+sudo dpkg -i emqx-5.6.1-ubuntu22.04-amd64.deb
+```
+
+### Step 2: Configure TLS
+
+1. Generate certificate:
+   ```bash
+   mkdir /etc/emqx/certs
+   cp /opt/keycloak/certs/ca.crt /etc/emqx/certs/
+   cp /opt/keycloak/certs/ca.key /etc/emqx/certs/
+   openssl req -new -key emqx.pd.ntt.hk.key -out emqx.pd.ntt.hk.csr -extensions v3_req -config openssl.cnf
+   openssl x509 -req -in emqx.pd.ntt.hk.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out emqx.pd.ntt.hk.crt -days 365 -sha256
+   ```
+
+2. **Create Listeners**:
+   - Listeners > **Add Listener**.
+   - **Name**: `mtls`.
+   - **Type**: `ssl`.
+   - **Bind**: `0.0.0.0:8883`.
+   - **Max Connections**: `Unlimit`.
+   - **TLS Cert**: upload `emqx.pd.ntt.hk.crt`.
+   - **TLS Key**: upload `emqx.pd.ntt.hk.key`.
+   - **CA Cert**: upload `ca.crt`.
+   - Click **Add**.
+
+
+### Step 3: Configure JWT Authentication (No Role-Based Check)
+
+1. Access EMQX Dashboard: `https://emqx.domain:8083` (admin/public).
+2. In **Authentication** > **Create** > **JWT**:
+   - **JWT Type**: `JWKS`.
+   - **JWKS Endpoint**: `http://192.168.57.82:8080/realms/myrealm/protocol/openid-connect/certs`.
+   - **Enable TLS**: `ON`.
+   - **TLS Cert**, upload `/etc/emqx/certs/client.crt`.
+   - **TLS Key**, upload `/etc/emqx/certs/client.key`.
+   - **CA Cert**, upload `/etc/emqx/certs/ca.crt`.
+   - Click **Create**.
+
+### Step 4: Start EMQX
+
+```bash
+sudo systemctl start emqx
+sudo systemctl enable emqx
+```
+
+## Integration: Publish to EMQX
+
+1. **Obtain JWT**:
+   ```bash
+   curl -k --cert /opt/keycloak/certs/client.crt --key /opt/keycloak/certs/client.key -X POST \ 
+    http://sso.pd.ntt.hk:8080/realms/myrealm/protocol/openid-connect/token \
+    -d "grant_type=client_credentials&client_id=cert-client&client_secret=0lYcipaoc1aHs9pxLzKXBuUrI9phk94s" |jq
+   ```
+
+   ```json
+       {"access_token": "eyJhb...", "expires_in": 300, "refresh_expires_in": 0, "token_type": "Bearer", "not-before-policy": 0, "scope": "profile email"}
+   ```
+   - Copy `access_token`.
+
+2. **Publish**:
+   ```bash
+   mosquitto_pub -h emqx.pd.ntt.hk -p 8883 --cafile /etc/emqx/certs/ms/ca.crt \
+     --cert /opt/keycloak/certs/client.crt --key /opt/keycloak/certs/client.key \
+     -t "test/topic" -m "Hello, EMQX!" \
+     -u "unused" -P "<access_token>"
+   ```
+
+## Verification
+
+- **Keycloak**:
+  - JWT issued via certificate authentication.
+  - Browser login prompts for certificate.
+- **EMQX**:
+  - Publishing succeeds.
+  - Check logs:
+    ```bash
+    tail -f /var/log/emqx/emqx.log
+    ```
+
+## Troubleshooting
+
+- **X509/Validate Client Certificate Still Missing**:
+  - Confirm `https-client-auth=requested` in `keycloak.conf`.
+  - Update to Keycloak 24.0.0 or later if 23.0.7 doesn’t resolve:
+    ```bash
+    wget https://github.com/keycloak/keycloak/releases/download/24.0.0/keycloak-24.0.0.tar.gz
+    ```
+  - Check for proxy issues (Solution 4).
+- **Authentication Fails**:
+  - Verify user attributes (`CN=client1`) and role mappings.
+  - Check logs for `KC-SERVICES0013: Failed authentication`:
+    ```bash
+    tail -f /opt/keycloak/data/log/keycloak.log
+    ```
+- **EMQX Issues**:
+  - Ensure JWKS endpoint is accessible.
+  - Verify ACL rules.
+
+## Notes
+
+- Use trusted CA certificates in production.
+- Secure `<client-secret>` and `<admin-password>`.
+- Remove `-k` in `curl` for production.
+- **X509/Validate Username** is a viable alternative if **X509/Validate Client Certificate** remains unavailable, but test thoroughly in your environment.[](https://wjw465150.gitbooks.io/keycloak-documentation/content/server_admin/topics/authentication/x509.html)
