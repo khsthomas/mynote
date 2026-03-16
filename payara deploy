@@ -1,0 +1,13 @@
+# edit payara server config asenv.conf
+AS_JAVA="/your/path/jdk"
+./asadmin list-applications --long
+
+# disable
+./asadmin disable old-myapp
+# or undeploy
+./asadmin undeploy old-myapp
+
+# deploy
+./asadmin deploy --upload true /path/to/your/myapp.war
+# or autodeploy
+cp /path/to/your/myapp.war [glassfish]/domains/domain1/autodeploy/
